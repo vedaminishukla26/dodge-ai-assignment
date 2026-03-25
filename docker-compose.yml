@@ -1,0 +1,93 @@
+version: "3.9"
+
+services:
+  # ── Neo4j Graph Database ──────────────────────────────────────────
+  db-graph:
+    image: neo4j:5.26-community
+    container_name: dodge-neo4j
+    ports:
+      - "7474:7474"   # Browser UI
+      - "7687:7687"   # Bolt protocol
+    environment:
+      - NEO4J_AUTH=neo4j/${NEO4J_PASSWORD:-dodge_ai_2024}
+      - NEO4J_PLUGINS=["apoc"]
+      - NEO4J_server_memory_heap_initial__size=256m
+      - NEO4J_server_memory_heap_max__size=512m
+    volumes:
+      - neo4j_data:/data
+      - neo4j_logs:/logs
+    healthcheck:
+      test: ["CMD-SHELL", "cypher-shell -u neo4j -p ${NEO4J_PASSWORD:-dodge_ai_2024} 'RETURN 1' || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+    networks:
+      - dodge-net
+
+  # ── PostgreSQL (Chat History) ─────────────────────────────────────
+  db-relational:
+    image: postgres:16-alpine
+    container_name: dodge-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB:-dodge_ai}
+      - POSTGRES_USER=${POSTGRES_USER:-dodge_user}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-dodge_pass_2024}
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-dodge_user} -d ${POSTGRES_DB:-dodge_ai}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    networks:
+      - dodge-net
+
+  # ── FastAPI Backend ───────────────────────────────────────────────
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: dodge-api
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    volumes:
+      - ./backend:/app
+      - ./dataset:/data/dataset
+    depends_on:
+      db-graph:
+        condition: service_healthy
+      db-relational:
+        condition: service_healthy
+    networks:
+      - dodge-net
+
+  # ── React Frontend ────────────────────────────────────────────────
+  web:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: dodge-web
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - api
+    networks:
+      - dodge-net
+
+volumes:
+  neo4j_data:
+  neo4j_logs:
+  pg_data:
+
+networks:
+  dodge-net:
+    driver: bridge

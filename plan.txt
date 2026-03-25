@@ -1,0 +1,43 @@
+Phase 1: Docker Orchestration & ScaffoldingGoal: Create a "one-click" environment.
+
+Task 1.1: Project Structure & Root ConfigCreate root directory. Initialize git.Create docker-compose.yml defining services: db-graph (Neo4j), db-relational (Postgres), api (FastAPI), and web (React).Checkpoint: docker-compose config passes without errors.
+
+Task 1.2: Backend Scaffold (Dockerized)Create /backend with a Dockerfile (Python 3.11-slim).Set up main.py (FastAPI) and requirements.txt.Checkpoint: docker-compose up api shows a "Hello World" JSON on localhost:8000.
+
+Task 1.3: Frontend Scaffold (Vite + Dockerized)Create /frontend using npm create vite@latest . -- --template react-ts.Add Dockerfile (multi-stage build: Node for build, Nginx for serving).Checkpoint: docker-compose up web shows the Vite/React logo on localhost:3000.🧬 
+
+Phase 2: Data Engineering (Neo4j & Postgres)Goal: Model the "Order to Cash" flow into the graph.
+
+Task 2.1: Graph Schema ImplementationWrite a models/graph_schema.py defining node labels (SalesOrder, Delivery, Invoice) and relationships.Checkpoint: Verify schema by manually creating one "Test Flow" in the Neo4j browser (localhost:7474).
+
+Task 2.2: Automated Seed ScriptCreate scripts/seed_data.py. This script reads your CSVs and runs Cypher commands to build the graph.Checkpoint: Running docker-compose exec api python scripts/seed_data.py populates the graph.
+
+Task 2.3: Relational History SetupDefine SQLAlchemy models for ChatHistory and RecentQueries.Checkpoint: Verify Postgres tables are created via psql or a database GUI.
+
+🧠 Phase 3: GenAI & Text-to-Cypher EngineGoal: Build the "Dodge AI" agent logic.
+
+Task 3.1: The LangChain Graph ChainImplement the GraphCypherQAChain using Gemini 1.5 Flash.Inject the System Prompt: "You are Dodge AI. Focus on Order-to-Cash flows. Use the provided schema..."Checkpoint: A Python test script successfully converts "Find invoice for 91150187" into a Cypher query.
+
+Task 3.2: Guardrail & Intent MiddlewareCreate a function to intercept the query. If the intent is not related to the graph data, return the "Guardrail" message.Checkpoint: Querying "Tell me a joke" returns the predefined "This system is designed for dataset queries only" response.
+
+🎨 Phase 4: Frontend Development (The UI/UX)Goal: Match the provided "Dodge AI" screenshots.
+
+Task 4.1: The Dashboard LayoutUse Tailwind to create the 2-column layout. Sidebar (25% width) and Graph Canvas (75% width).Add the "Mapping / Order to Cash" header and "Minimize" / "Hide Overlay" buttons.Checkpoint: UI frame looks identical to the provided image_695305.jpg.
+
+Task 4.2: Interactive Graph ComponentIntegrate react-force-graph-2d. Set nodeColor based on entity type (Blue for Orders, Red for Payments).Implement onNodeHover to show the Journal Entry Tooltip (as seen in image_695329.jpg).Checkpoint: Hovering over a node displays its metadata in a clean, white popover.
+
+Task 4.3: Chat Sidebar with StreamingBuild the chat interface. Implement word-by-word streaming for the AI response.Add "Sample Query" cards at the bottom of the chat for new sessions.Checkpoint: User can type a query and see the AI response appear in real-time.
+
+🔗 Phase 5: Integration & PolishGoal: Synchronize the Graph with the Chat.
+
+Task 5.1: Node Highlighting LogicBackend sends a list of node_ids in the JSON response.React state updates the highlightedNodes array.Checkpoint: When AI mentions an ID, the corresponding node pulses in the graph.
+
+Task 5.2: Trace-Flow Visualization (Requirement 4b)Implement a specific mode: When a "Trace" query is detected, the graph zooms into only the linear path of that specific billing document.Checkpoint: "Trace Sales Order 91150187" displays a clear, isolated path $Order \to Delivery \to Invoice$.
+
+🏁 Phase 6: Reviewer Packaging & README
+
+Task 6.1: The "One-Command" SetupRefine the docker-compose.yml so it includes health checks (API waits for Neo4j to be ready).Checkpoint: Deleting all containers and running docker-compose up --build results in a fully working system in < 2 minutes.
+
+Task 6.2: Final README & VideoWrite the README explaining the Text-to-Cypher strategy and Docker instructions.Include your AI session logs (Cursor/Copilot) as a .zip in the repo.
+
+SDE-3 Final Tip: The "Reproducibility" SecretReviewers hate "it works on my machine" bugs. To avoid this, we will use Environment Variables.Create an .env.example file.In your main.py, add a check: if not OPENAI_API_KEY: raise Exception("Missing API Key").This forces the reviewer to add their key but ensures the rest of the infrastructure (DBs, UI, etc.) is perfectly wired.

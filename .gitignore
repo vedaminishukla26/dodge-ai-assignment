@@ -1,0 +1,26 @@
+# Environment
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+
+# Node
+node_modules/
+dist/
+
+# Docker volumes
+neo4j_data/
+pg_data/
+
+# Dataset folder
+dataset
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
