@@ -9,3 +9,4 @@ langchain-community==0.3.14
 pydantic==2.10.4
 python-dotenv==1.0.1
 sse-starlette==2.2.1
+langchain-openai==0.3.5

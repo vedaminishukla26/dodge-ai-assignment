@@ -11,6 +11,7 @@ import os
 import re
 
 from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_openai import ChatOpenAI
 from langchain_core.messages import SystemMessage, HumanMessage
 
 # ── Keywords that strongly indicate off-topic queries ───────────────
@@ -104,12 +105,21 @@ async def check_guardrail(query: str) -> dict:
 
     # Step 2: LLM classification for ambiguous queries
     try:
-        llm = ChatGoogleGenerativeAI(
-            model="gemini-2.0-flash",
-            google_api_key=os.getenv("GOOGLE_API_KEY"),
-            temperature=0,
-            max_output_tokens=10,
-        )
+        provider = os.getenv("LLM_PROVIDER", "google").lower()
+        if provider == "openai":
+            llm = ChatOpenAI(
+                model=os.getenv("OPENAI_MODEL", "gpt-4o"),
+                api_key=os.getenv("OPENAI_API_KEY"),
+                temperature=0,
+                max_tokens=10,
+            )
+        else:
+            llm = ChatGoogleGenerativeAI(
+                model="gemini-2.0-flash",
+                google_api_key=os.getenv("GOOGLE_API_KEY"),
+                temperature=0,
+                max_output_tokens=10,
+            )
         response = await llm.ainvoke([
             SystemMessage(content=_CLASSIFIER_PROMPT),
             HumanMessage(content=query),

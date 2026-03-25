@@ -20,6 +20,11 @@ def get_neo4j_driver():
     return neo4j_driver
 
 
+def get_session_factory():
+    """Return the SessionLocal factory (initialised during lifespan)."""
+    return SessionLocal
+
+
 def get_pg_session():
     session = SessionLocal()
     try:

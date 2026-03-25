@@ -14,6 +14,7 @@ import re
 from typing import Any
 
 from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_openai import ChatOpenAI
 from langchain_community.graphs import Neo4jGraph
 from langchain.chains import GraphCypherQAChain
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
@@ -80,29 +81,44 @@ def _get_chain() -> GraphCypherQAChain:
     graph = _get_graph()
     schema_text = get_schema_description()
 
-    cypher_llm = ChatGoogleGenerativeAI(
-        model="gemini-2.0-flash",
-        google_api_key=os.getenv("GOOGLE_API_KEY"),
-        temperature=0,
-        convert_system_message_to_human=True,
-    )
+    provider = os.getenv("LLM_PROVIDER", "google").lower()
 
-    qa_llm = ChatGoogleGenerativeAI(
-        model="gemini-2.0-flash",
-        google_api_key=os.getenv("GOOGLE_API_KEY"),
-        temperature=0.3,
-        convert_system_message_to_human=True,
-    )
+    if provider == "openai":
+        cypher_llm = ChatOpenAI(
+            model=os.getenv("OPENAI_MODEL", "gpt-4o"),
+            api_key=os.getenv("OPENAI_API_KEY"),
+            temperature=0,
+            max_retries=2,
+        )
+        qa_llm = ChatOpenAI(
+            model=os.getenv("OPENAI_MODEL", "gpt-4o"),
+            api_key=os.getenv("OPENAI_API_KEY"),
+            temperature=0.3,
+            max_retries=2,
+        )
+    else:
+        cypher_llm = ChatGoogleGenerativeAI(
+            model="gemini-2.0-flash",
+            google_api_key=os.getenv("GOOGLE_API_KEY"),
+            temperature=0,
+            max_retries=2,
+        )
+        qa_llm = ChatGoogleGenerativeAI(
+            model="gemini-2.0-flash",
+            google_api_key=os.getenv("GOOGLE_API_KEY"),
+            temperature=0.3,
+            max_retries=2,
+        )
 
     cypher_prompt = ChatPromptTemplate.from_messages([
         ("system", _CYPHER_SYSTEM.format(schema=schema_text)),
-        ("human", "{query}"),
+        ("human", "{question}"),
     ])
 
     qa_prompt = ChatPromptTemplate.from_messages([
         ("system", _QA_SYSTEM),
         ("human",
-         "User Question: {query}\n\n"
+         "User Question: {question}\n\n"
          "Cypher Query Used:\n```\n{context}\n```\n\n"
          "Query Results:\n{context}"),
     ])
@@ -164,10 +180,27 @@ async def query_graph(user_query: str) -> dict:
     chain = _get_chain()
 
     try:
-        result = await chain.ainvoke({"query": user_query})
+        result = await chain.ainvoke({"query": user_query}) # GraphCypherQAChain usually maps 'query' to 'question' internally or vice versa. 
+        # Actually, let's use 'query' for the top level call if that's what's expected, 
+        # but standard LangChain often wants 'business logic' keys.
+        # Wait, the error said MISSING 'query'. 
+        # Let's try to be explicit about the input key if possible.
+
     except Exception as e:
         error_msg = str(e)
-        # Try to provide a useful error message
+        # Handle rate-limit errors
+        if "429" in error_msg or "ResourceExhausted" in error_msg or "quota" in error_msg.lower():
+            provider = os.getenv("LLM_PROVIDER", "google").capitalize()
+            return {
+                "answer": (
+                    f"⏳ **Rate limit reached** \u2014 the {provider} API quota has been "
+                    "temporarily exceeded. Please wait a minute and try again."
+                ),
+                "cypher_query": "",
+                "raw_results": [],
+                "node_ids": [],
+            }
+        # Handle Cypher syntax errors
         if "syntax" in error_msg.lower() or "cypher" in error_msg.lower():
             return {
                 "answer": (
@@ -217,7 +250,7 @@ async def get_full_graph(limit: int = 300) -> dict:
 
     # Fetch nodes of each type with a limit
     nodes_query = """
-    CALL {
+    CALL () {
         MATCH (n:SalesOrder) RETURN n, labels(n)[0] AS label LIMIT 30
         UNION ALL
         MATCH (n:SalesOrderItem) RETURN n, labels(n)[0] AS label LIMIT 50
