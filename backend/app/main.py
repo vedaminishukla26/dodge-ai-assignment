@@ -97,3 +97,9 @@ app.add_middleware(
 @app.get("/health")
 def health():
     return {"status": "ok", "service": "dodge-ai-api"}
+
+
+# ── Register API routes ──────────────────────────────────────────
+from app.routes.chat import router as chat_router  # noqa: E402
+
+app.include_router(chat_router)
