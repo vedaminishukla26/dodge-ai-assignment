@@ -8,6 +8,13 @@ interface Message {
   node_ids?: string[]
 }
 
+interface ChatSession {
+  id: string
+  title: string
+  created_at: string
+  updated_at: string
+}
+
 interface ChatSidebarProps {
   onHighlightNodes: (nodeIds: string[]) => void
 }
@@ -26,6 +33,10 @@ export default function ChatSidebar({ onHighlightNodes }: ChatSidebarProps) {
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [sessionId, setSessionId] = useState<string | null>(null)
+  const [showTrace, setShowTrace] = useState(false)
+  const [showHistory, setShowHistory] = useState(false)
+  const [sessions, setSessions] = useState<ChatSession[]>([])
+  const [traceLogs, setTraceLogs] = useState<string[]>([])
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
@@ -36,6 +47,22 @@ export default function ChatSidebar({ onHighlightNodes }: ChatSidebarProps) {
   useEffect(() => {
     scrollToBottom()
   }, [messages, scrollToBottom])
+
+  const fetchSessions = useCallback(async () => {
+    try {
+      const response = await fetch('/api/chat/sessions')
+      if (response.ok) {
+        const data = await response.json()
+        setSessions(data)
+      }
+    } catch (e) {
+      console.error('Failed to fetch sessions:', e)
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchSessions()
+  }, [fetchSessions])
 
   const sendMessage = async (query: string) => {
     if (!query.trim() || isLoading) return
@@ -48,6 +75,9 @@ export default function ChatSidebar({ onHighlightNodes }: ChatSidebarProps) {
     setMessages(prev => [...prev, userMessage])
     setInput('')
     setIsLoading(true)
+
+    // Clear old trace logs for new message
+    setTraceLogs(prev => [...prev, `--- New Query: ${query} ---`])
 
     // Create a placeholder assistant message for streaming
     const assistantId = `assistant-${Date.now()}`
@@ -83,7 +113,11 @@ export default function ChatSidebar({ onHighlightNodes }: ChatSidebarProps) {
         const { done, value } = await reader.read()
         if (done) break
 
-        buffer += decoder.decode(value, { stream: true })
+        const chunk = decoder.decode(value, { stream: true })
+        buffer += chunk
+
+        // Log raw SSE data to trace
+        setTraceLogs(prev => [...prev, chunk])
 
         // Parse SSE events from buffer
         const lines = buffer.split('\n')
@@ -183,6 +217,46 @@ export default function ChatSidebar({ onHighlightNodes }: ChatSidebarProps) {
     }
   }
 
+  const handleNewChat = () => {
+    setMessages([])
+    setSessionId(null)
+    setTraceLogs([])
+    setInput('')
+    setShowHistory(false)
+    fetchSessions()
+  }
+
+  const loadSession = async (session: ChatSession) => {
+    setIsLoading(true)
+    setSessionId(session.id)
+    setShowHistory(false)
+    setMessages([])
+
+    try {
+      const response = await fetch(`/api/chat/history/${session.id}`)
+      if (response.ok) {
+        const data = await response.json()
+        setMessages(data)
+      } else {
+        throw new Error('Failed to load history')
+      }
+    } catch (e) {
+      console.error(e)
+      setMessages([{
+        id: 'err',
+        role: 'assistant',
+        content: `⚠️ Failed to load session: ${e instanceof Error ? e.message : 'Unknown error'}`
+      }])
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text)
+    // Optional: add a toast or temporary state for "Copied!"
+  }
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
@@ -194,9 +268,31 @@ export default function ChatSidebar({ onHighlightNodes }: ChatSidebarProps) {
     <div className="sidebar">
       {/* Header */}
       <div className="sidebar-header">
-        <span className="logo-icon">⚡</span>
-        <span className="logo">Dodge AI</span>
-        <span className="subtitle">O2C Analytics</span>
+        <div className="header-top">
+          <div className="brand">
+            <span className="logo-icon">⚡</span>
+            <span className="logo">Dodge AI</span>
+          </div>
+          <button className="new-chat-btn" onClick={handleNewChat} title="New Session">
+            <span>+</span> New
+          </button>
+        </div>
+        <div className="header-actions">
+          <button
+            className={`history-toggle ${showHistory ? 'active' : ''}`}
+            onClick={() => setShowHistory(!showHistory)}
+            title="Recent Conversations"
+          >
+            History
+          </button>
+          <button
+            className={`trace-toggle ${showTrace ? 'active' : ''}`}
+            onClick={() => setShowTrace(!showTrace)}
+            title="View Raw Trace Logs"
+          >
+            Trace
+          </button>
+        </div>
       </div>
 
       {/* Messages */}
@@ -223,14 +319,23 @@ export default function ChatSidebar({ onHighlightNodes }: ChatSidebarProps) {
         </div>
       ) : (
         <div className="messages-container">
-          {messages.map(msg => (
+          {messages.map((msg: Message) => (
             <div key={msg.id} className={`message ${msg.role}`}>
-              <div>{msg.content}</div>
+              <div className="message-content">{msg.content}</div>
               {msg.cypher_query && (
-                <>
-                  <div className="cypher-label">Cypher Query</div>
+                <div className="cypher-wrapper">
+                  <div className="cypher-header">
+                    <span className="cypher-label">Cypher Query</span>
+                    <button
+                      className="copy-btn"
+                      onClick={() => copyToClipboard(msg.cypher_query!)}
+                      title="Copy to clipboard"
+                    >
+                      📋 Copy
+                    </button>
+                  </div>
                   <div className="cypher-block">{msg.cypher_query}</div>
-                </>
+                </div>
               )}
             </div>
           ))}
@@ -267,6 +372,50 @@ export default function ChatSidebar({ onHighlightNodes }: ChatSidebarProps) {
           </button>
         </div>
       </div>
+
+      {/* Trace Logs Panel */}
+      {showTrace && (
+        <div className="trace-panel">
+          <div className="trace-header">
+            <span>Debug Trace</span>
+            <button onClick={() => setTraceLogs([])}>Clear</button>
+          </div>
+          <div className="trace-content">
+            {traceLogs.map((log, i) => (
+              <div key={i} className="trace-log-line">{log}</div>
+            ))}
+            <div ref={messagesEndRef} />
+          </div>
+        </div>
+      )}
+
+      {/* History Panel */}
+      {showHistory && (
+        <div className="history-panel">
+          <div className="history-header">
+            <span>Recent Chats</span>
+            <button onClick={() => setShowHistory(false)}>Close</button>
+          </div>
+          <div className="history-list">
+            {sessions.length === 0 ? (
+              <div className="no-history">No sessions found</div>
+            ) : (
+              sessions.map((s: ChatSession) => (
+                <div
+                  key={s.id}
+                  className={`history-item ${sessionId === s.id ? 'active' : ''}`}
+                  onClick={() => loadSession(s)}
+                >
+                  <div className="history-title">{s.title || 'Untitled Chat'}</div>
+                  <div className="history-date">
+                    {new Date(s.updated_at).toLocaleDateString()}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

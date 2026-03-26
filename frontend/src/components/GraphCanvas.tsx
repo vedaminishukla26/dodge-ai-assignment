@@ -247,6 +247,13 @@ export default function GraphCanvas({ highlightedNodeIds }: GraphCanvasProps) {
     []
   )
 
+  // Reset view handler
+  const handleResetView = useCallback(() => {
+    if (graphRef.current) {
+      graphRef.current.zoomToFit(400, 50)
+    }
+  }, [])
+
   // Format property key for display
   const formatKey = (key: string) => {
     return key.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase())
@@ -261,6 +268,13 @@ export default function GraphCanvas({ highlightedNodeIds }: GraphCanvasProps) {
           <span>Knowledge Graph</span>
         </div>
         <div className="graph-stats">
+          <button
+            className="graph-reset-btn"
+            onClick={handleResetView}
+            title="Reset View"
+          >
+            <span>🔄</span> Reset
+          </button>
           <span className="stat">
             <span className="stat-dot" style={{ background: '#6366f1' }} />
             {graphData.nodes.length} nodes
@@ -296,17 +310,19 @@ export default function GraphCanvas({ highlightedNodeIds }: GraphCanvasProps) {
             ctx.fillStyle = color
             ctx.fill()
           }}
-          linkColor={() => 'rgba(255,255,255,0.07)'}
-          linkWidth={1}
-          linkDirectionalArrowLength={4}
-          linkDirectionalArrowRelPos={0.9}
-          linkDirectionalArrowColor={() => 'rgba(255,255,255,0.15)'}
+          linkColor={() => 'rgba(255,255,255,0.1)'}
+          linkWidth={1.5}
+          linkDirectionalArrowLength={6}
+          linkDirectionalArrowRelPos={1}
+          linkDirectionalArrowColor={() => 'rgba(255,255,255,0.3)'}
           onNodeHover={handleNodeHover}
           onNodeClick={handleNodeClick}
           cooldownTicks={60}
           d3AlphaDecay={0.04}
           d3VelocityDecay={0.3}
           warmupTicks={40}
+          minZoom={0.5}
+          maxZoom={10}
           enableZoomInteraction={true}
           enablePanInteraction={true}
         />

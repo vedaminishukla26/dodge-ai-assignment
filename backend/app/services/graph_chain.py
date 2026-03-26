@@ -129,6 +129,7 @@ def _get_chain() -> GraphCypherQAChain:
         graph=graph,
         cypher_prompt=cypher_prompt,
         qa_prompt=qa_prompt,
+        input_key="query",
         verbose=True,
         return_intermediate_steps=True,
         validate_cypher=True,
