@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import ForceGraph2D, { type ForceGraphMethods } from 'react-force-graph-2d'
+import { API_BASE_URL } from '../config';
 
 interface GraphNode {
   id: string
@@ -75,7 +76,7 @@ export default function GraphCanvas({ highlightedNodeIds }: GraphCanvasProps) {
   useEffect(() => {
     async function fetchGraph() {
       try {
-        const res = await fetch('/api/graph/data')
+        const res = await fetch(`${API_BASE_URL}/api/graph/data`)
         const data = await res.json()
         setGraphData(data)
       } catch (e) {
@@ -151,7 +152,7 @@ export default function GraphCanvas({ highlightedNodeIds }: GraphCanvasProps) {
     async (node: any) => {
       // Fetch neighbors and add to graph
       try {
-        const res = await fetch(`/api/graph/node/${encodeURIComponent(node.id)}`)
+        const res = await fetch(`${API_BASE_URL}/api/graph/node/${encodeURIComponent(node.id)}`)
         const data = await res.json()
 
         if (data.neighbors && data.neighbors.length > 0) {

@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
+import { API_BASE_URL } from '../config';
 
 interface Message {
   id: string
@@ -50,7 +51,7 @@ export default function ChatSidebar({ onHighlightNodes }: ChatSidebarProps) {
 
   const fetchSessions = useCallback(async () => {
     try {
-      const response = await fetch('/api/chat/sessions')
+      const response = await fetch(`${API_BASE_URL}/api/chat/sessions`)
       if (response.ok) {
         const data = await response.json()
         setSessions(data)
@@ -89,7 +90,7 @@ export default function ChatSidebar({ onHighlightNodes }: ChatSidebarProps) {
     setMessages(prev => [...prev, assistantMessage])
 
     try {
-      const response = await fetch('/api/chat/stream', {
+      const response = await fetch(`${API_BASE_URL}/api/chat/stream`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -233,7 +234,7 @@ export default function ChatSidebar({ onHighlightNodes }: ChatSidebarProps) {
     setMessages([])
 
     try {
-      const response = await fetch(`/api/chat/history/${session.id}`)
+      const response = await fetch(`${API_BASE_URL}/api/chat/history/${session.id}`)
       if (response.ok) {
         const data = await response.json()
         setMessages(data)
