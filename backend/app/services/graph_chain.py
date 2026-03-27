@@ -68,6 +68,7 @@ def _get_graph() -> Neo4jGraph:
             url=os.getenv("NEO4J_URI", "bolt://localhost:7687"),
             username=os.getenv("NEO4J_USER", "neo4j"),
             password=os.getenv("NEO4J_PASSWORD", "dodge_ai_2024"),
+            database=os.getenv("NEO4J_USER", "neo4j")
         )
     return _graph
 
