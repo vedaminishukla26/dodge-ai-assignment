@@ -4,9 +4,9 @@ neo4j==5.27.0
 langchain==0.3.14
 langchain-google-genai==2.0.8
 langchain-community==0.3.14
-pydantic==2.10.4
+pydantic>=2.0.0
+psycopg2-binary>=2.9.0
 python-dotenv==1.0.1
 sse-starlette==2.2.1
 langchain-openai==0.3.5
 sqlalchemy
-psycopg2-binary
