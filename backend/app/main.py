@@ -11,19 +11,7 @@ from app.database import engine as pg_engine, SessionLocal, init_db
 
 load_dotenv()
 
-# ── Global connections ──────────────────────────────────────────────
-neo4j_driver = None
 
-def get_neo4j_driver():
-    return neo4j_driver
-
-def get_pg_session():
-    """Dependency to get a database session."""
-    session = SessionLocal()
-    try:
-        yield session
-    finally:
-        session.close()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):

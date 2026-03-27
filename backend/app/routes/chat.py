@@ -21,7 +21,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from app.main import get_pg_session, get_session_factory
+from app.database import get_pg_session, get_session_factory
 from app.models.chat_models import ChatSession, ChatMessage
 from app.services.guardrails import check_guardrail
 from app.services.graph_chain import query_graph, get_full_graph, get_node_neighbors

@@ -3,6 +3,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from .models.chat_models import Base
 
+
 # Strictly use the single connection string
 SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL")
 
@@ -26,3 +27,13 @@ def get_db():
 def init_db():
     # This creates the chat_sessions and chat_messages tables in your Render DB
     Base.metadata.create_all(bind=engine)
+
+def get_session_factory():
+    return SessionLocal
+
+def get_pg_session():
+    session = SessionLocal()
+    try:
+        yield session
+    finally:
+        session.close()
