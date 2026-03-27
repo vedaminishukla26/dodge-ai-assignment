@@ -1,16 +1,17 @@
 import os
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy.orm import sessionmaker
 from .models.chat_models import Base
 
-# Database URL from environment
-POSTGRES_USER = os.getenv("POSTGRES_USER", "dodge_user")
-POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD", "dodge_pass_2024")
-POSTGRES_DB = os.getenv("POSTGRES_DB", "dodge_ai")
-POSTGRES_HOST = os.getenv("POSTGRES_HOST", "db-relational")
-POSTGRES_PORT = os.getenv("POSTGRES_PORT", "5432")
+# Strictly use the single connection string
+SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL")
 
-SQLALCHEMY_DATABASE_URL = f"postgresql://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}:{POSTGRES_PORT}/{POSTGRES_DB}"
+if not SQLALCHEMY_DATABASE_URL:
+    raise RuntimeError("DATABASE_URL environment variable is not set.")
+
+# SQLAlchemy 1.4+ requires 'postgresql://' but many providers use 'postgres://'
+if SQLALCHEMY_DATABASE_URL.startswith("postgres://"):
+    SQLALCHEMY_DATABASE_URL = SQLALCHEMY_DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
 engine = create_engine(SQLALCHEMY_DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
@@ -23,4 +24,5 @@ def get_db():
         db.close()
 
 def init_db():
+    # This creates the chat_sessions and chat_messages tables in your Render DB
     Base.metadata.create_all(bind=engine)
